@@ -1,6 +1,74 @@
 {
-    "1_star_count": 110,
-    "2_star_count": 15,
-    "last_1_star_id": "1952588",
-    "last_2_star_id": "1864466"
+    "Recharge": {
+        "1_star": 110,
+        "2_star": 15,
+        "last_1_id": "1952588",
+        "last_2_id": "1864466"
+    },
+    "Appstle": {
+        "1_star": 36,
+        "2_star": 13,
+        "last_1_id": "1936603",
+        "last_2_id": "1858588"
+    },
+    "Seal": {
+        "1_star": 17,
+        "2_star": 5,
+        "last_1_id": "1889557",
+        "last_2_id": "1908639"
+    },
+    "Kaching": {
+        "1_star": 0,
+        "2_star": 0,
+        "last_1_id": null,
+        "last_2_id": null
+    },
+    "Joy": {
+        "1_star": 4,
+        "2_star": 1,
+        "last_1_id": "1900903",
+        "last_2_id": "1632856"
+    },
+    "Subi": {
+        "1_star": 5,
+        "2_star": 7,
+        "last_1_id": "1894970",
+        "last_2_id": "1662520"
+    },
+    "Bold": {
+        "1_star": 45,
+        "2_star": 8,
+        "last_1_id": "1920773",
+        "last_2_id": "1886096"
+    },
+    "Recurpay": {
+        "1_star": 1,
+        "2_star": 1,
+        "last_1_id": "906221",
+        "last_2_id": "1768145"
+    },
+    "ShopifySubs": {
+        "1_star": 85,
+        "2_star": 32,
+        "last_1_id": "1952748",
+        "last_2_id": "1950063"
+    },
+    "StayAI": {
+        "1_star": 1,
+        "2_star": 0,
+        "last_1_id": "1155581",
+        "last_2_id": null
+    },
+    "Smartrr": {
+        "1_star": 0,
+        "2_star": 1,
+        "last_1_id": null,
+        "last_2_id": "1619192"
+    },
+    "PayWhirl": {
+        "1_star": 6,
+        "2_star": 3,
+        "last_1_id": "1792960",
+        "last_2_id": "1759710"
+    }
 }
