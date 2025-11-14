@@ -14,54 +14,18 @@ from webdriver_manager.chrome import ChromeDriverManager
 
 # --- 11 APPS CONFIG ---
 APPS = {
-    "Recharge": {
-        "url": "https://apps.shopify.com/subscription-payments",
-        "name": "Recharge"
-    },
-    "Appstle": {
-        "url": "https://apps.shopify.com/subscriptions-by-appstle",
-        "name": "Appstle Subscriptions"
-    },
-    "Seal": {
-        "url": "https://apps.shopify.com/seal-subscriptions",
-        "name": "Seal Subscriptions"
-    },
-    "Kaching": {
-        "url": "https://apps.shopify.com/kaching-subscriptions",
-        "name": "Kaching Subscriptions"
-    },
-    "Joy": {
-        "url": "https://apps.shopify.com/joy-subscription",
-        "name": "Joy Subscriptions"
-    },
-    "Subi": {
-        "url": "https://apps.shopify.com/subi-subscriptions-memberships",
-        "name": "Subi Subscriptions"
-    },
-    "Bold": {
-        "url": "https://apps.shopify.com/bold-subscriptions",
-        "name": "Bold Subscriptions"
-    },
-    "Recurpay": {
-        "url": "https://apps.shopify.com/recurpay-subscriptions",
-        "name": "Recurpay"
-    },
-    "ShopifySubs": {
-        "url": "https://apps.shopify.com/shopify-subscriptions",
-        "name": "Shopify Subscriptions"
-    },
-    "StayAI": {
-        "url": "https://apps.shopify.com/stayai-subscriptions",
-        "name": "Stay AI"
-    },
-    "Smartrr": {
-        "url": "https://apps.shopify.com/smartrr",
-        "name": "Smartrr"
-    },
-    "PayWhirl": {
-        "url": "https://apps.shopify.com/paywhirl",
-        "name": "PayWhirl"
-    }
+    "Recharge": {"url": "https://apps.shopify.com/subscription-payments", "name": "Recharge"},
+    "Appstle": {"url": "https://apps.shopify.com/subscriptions-by-appstle", "name": "Appstle Subscriptions"},
+    "Seal": {"url": "https://apps.shopify.com/seal-subscriptions", "name": "Seal Subscriptions"},
+    "Kaching": {"url": "https://apps.shopify.com/kaching-subscriptions", "name": "Kaching Subscriptions"},
+    "Joy": {"url": "https://apps.shopify.com/joy-subscription", "name": "Joy Subscriptions"},
+    "Subi": {"url": "https://apps.shopify.com/subi-subscriptions-memberships", "name": "Subi Subscriptions"},
+    "Bold": {"url": "https://apps.shopify.com/bold-subscriptions", "name": "Bold Subscriptions"},
+    "Recurpay": {"url": "https://apps.shopify.com/recurpay-subscriptions", "name": "Recurpay"},
+    "ShopifySubs": {"url": "https://apps.shopify.com/shopify-subscriptions", "name": "Shopify Subscriptions"},
+    "StayAI": {"url": "https://apps.shopify.com/stayai-subscriptions", "name": "Stay AI"},
+    "Smartrr": {"url": "https://apps.shopify.com/smartrr", "name": "Smartrr"},
+    "PayWhirl": {"url": "https://apps.shopify.com/paywhirl", "name": "PayWhirl"}
 }
 
 STATE_FILE = Path("review_state.json")
@@ -85,14 +49,14 @@ def init_driver():
         print(f"Driver failed: {e}")
         return None
 
-# --- STATE (WITH MIGRATION) ---
+# --- STATE WITH MIGRATION ---
 def load_state():
     if STATE_FILE.exists():
         try:
             with open(STATE_FILE, 'r') as f:
                 old_state = json.load(f)
             
-            # MIGRATE OLD FORMAT (single app)
+            # MIGRATE OLD SINGLE APP FORMAT
             if "1_star_count" in old_state:
                 print("Old state detected. Migrating to 11-app format...")
                 migrated = {
@@ -107,16 +71,12 @@ def load_state():
                     migrated[key] = {"1_star": 0, "2_star": 0, "last_1_id": None, "last_2_id": None}
                 print("Migration complete.")
                 return migrated
-            
-            # NEW FORMAT
             else:
                 print("New state format loaded.")
                 return old_state
-                
         except Exception as e:
             print(f"State load error: {e}")
     
-    # FRESH STATE
     print("Creating fresh state for 11 apps...")
     return {key: {"1_star": 0, "2_star": 0, "last_1_id": None, "last_2_id": None} for key in APPS}
 
@@ -189,11 +149,14 @@ def get_new_reviews(driver, url, last_id):
 def main():
     print("Multi-App Monitor: 11 Apps")
     state = load_state()
-    
-    # SAFE COPY (prevents int.copy error)
+
+    # SAFE NEW_STATE (NO .copy() ON int)
     new_state = {}
     for k, v in state.items():
-        new_state[k] = v.copy() if isinstance(v, dict) else v
+        if isinstance(v, dict):
+            new_state[k] = v.copy()
+        else:
+            new_state[k] = v  # fallback
 
     driver = init_driver()
     if not driver:
@@ -217,7 +180,7 @@ def main():
                 any_new = True
                 url = f"{app['url']}/reviews?ratings%5B%5D=1&sort_by=newest"
                 reviews, nid = get_new_reviews(driver, url, state[key]["last_1_id"])
-                if nid: new_state[key]["last_1_id"] = nid
+                if nid: new_state[key]["last_1_id"] = fallout
                 for r in reviews:
                     msg = f"*New 1-Star Review*\n*App:* {app['name']}\n*Store:* {r['author']}\n*Date:* {r['date']}\n*Link:* {r['link']}"
                     send_to_slack(msg)
