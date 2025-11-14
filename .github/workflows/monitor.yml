@@ -9,10 +9,10 @@ on:
   workflow_dispatch:
 
 jobs:
-  monitor:
+  build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
+      - name: Checkout repository code
         uses: actions/checkout@v4
 
       - name: Set up Python
@@ -25,18 +25,14 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run monitor
+      - name: Run the review monitor script
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
         run: python main.py
 
-      - name: Commit state file
+      - name: Commit and push state file
         run: |
           git config --global user.name 'github-actions'
           git config --global user.email 'github-actions@github.com'
           git add review_state.json
-          if git diff --staged --quiet; then
-            echo "No changes to commit"
-          else
-            git commit -m "Update review_state.json [skip ci]" && git push
-          fi
+          git diff --staged --quiet || (git commit -m "Update review_state.json [skip ci]" && git push)
