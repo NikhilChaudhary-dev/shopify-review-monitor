@@ -69,7 +69,7 @@ SLACK_WEBHOOK_URL = os.environ.get("SLACK_WEBHOOK_URL", "YOUR_SLACK_WEBHOOK_URL_
 
 # --- DRIVER ---
 def init_driver():
-    print("Starting ChromeDriver...")
+    print("Initializing ChromeDriver...")
     options = Options()
     options.add_argument("--headless")
     options.add_argument("--no-sandbox")
@@ -85,14 +85,39 @@ def init_driver():
         print(f"Driver failed: {e}")
         return None
 
-# --- STATE ---
+# --- STATE (WITH MIGRATION) ---
 def load_state():
     if STATE_FILE.exists():
         try:
             with open(STATE_FILE, 'r') as f:
-                return json.load(f)
-        except:
-            print("State corrupt. Starting fresh.")
+                old_state = json.load(f)
+            
+            # MIGRATE OLD FORMAT (single app)
+            if "1_star_count" in old_state:
+                print("Old state detected. Migrating to 11-app format...")
+                migrated = {
+                    "Recharge": {
+                        "1_star": old_state.get("1_star_count", 0),
+                        "2_star": old_state.get("2_star_count", 0),
+                        "last_1_id": old_state.get("last_1_star_id"),
+                        "last_2_id": old_state.get("last_2_star_id")
+                    }
+                }
+                for key in [k for k in APPS.keys() if k != "Recharge"]:
+                    migrated[key] = {"1_star": 0, "2_star": 0, "last_1_id": None, "last_2_id": None}
+                print("Migration complete.")
+                return migrated
+            
+            # NEW FORMAT
+            else:
+                print("New state format loaded.")
+                return old_state
+                
+        except Exception as e:
+            print(f"State load error: {e}")
+    
+    # FRESH STATE
+    print("Creating fresh state for 11 apps...")
     return {key: {"1_star": 0, "2_star": 0, "last_1_id": None, "last_2_id": None} for key in APPS}
 
 def save_state(state):
@@ -164,7 +189,12 @@ def get_new_reviews(driver, url, last_id):
 def main():
     print("Multi-App Monitor: 11 Apps")
     state = load_state()
-    new_state = {k: v.copy() for k, v in state.items()}
+    
+    # SAFE COPY (prevents int.copy error)
+    new_state = {}
+    for k, v in state.items():
+        new_state[k] = v.copy() if isinstance(v, dict) else v
+
     driver = init_driver()
     if not driver:
         send_to_slack("Driver failed to start!")
