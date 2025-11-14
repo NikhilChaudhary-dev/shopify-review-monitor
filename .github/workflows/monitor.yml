@@ -11,6 +11,10 @@ on:
 jobs:
   run-monitor:
     runs-on: ubuntu-latest
+    permissions:
+      # CRITICAL FIX: Grant write permission to the GITHUB_TOKEN
+      # This allows the job to commit and push the updated review_state.json file.
+      contents: write 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -35,8 +39,9 @@ jobs:
           git config --global user.name 'github-actions'
           git config --global user.email 'github-actions@github.com'
           git add review_state.json
+          # Check if there are any changes to commit before pushing
           if git diff --staged --quiet; then
-            echo "No changes"
+            echo "No changes to review_state.json. Skipping commit."
           else
             git commit -m "Update review_state.json [skip ci]" && git push
           fi
