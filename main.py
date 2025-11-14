@@ -56,7 +56,6 @@ def load_state():
             with open(STATE_FILE, 'r') as f:
                 old_state = json.load(f)
             
-            # MIGRATE OLD SINGLE APP FORMAT
             if "1_star_count" in old_state:
                 print("Old state detected. Migrating to 11-app format...")
                 migrated = {
@@ -150,13 +149,13 @@ def main():
     print("Multi-App Monitor: 11 Apps")
     state = load_state()
 
-    # SAFE NEW_STATE (NO .copy() ON int)
+    # SAFE NEW_STATE
     new_state = {}
     for k, v in state.items():
         if isinstance(v, dict):
             new_state[k] = v.copy()
         else:
-            new_state[k] = v  # fallback
+            new_state[k] = v
 
     driver = init_driver()
     if not driver:
@@ -180,7 +179,8 @@ def main():
                 any_new = True
                 url = f"{app['url']}/reviews?ratings%5B%5D=1&sort_by=newest"
                 reviews, nid = get_new_reviews(driver, url, state[key]["last_1_id"])
-                if nid: new_state[key]["last_1_id"] = fallout
+                if nid: 
+                    new_state[key]["last_1_id"] = nid  # FIXED
                 for r in reviews:
                     msg = f"*New 1-Star Review*\n*App:* {app['name']}\n*Store:* {r['author']}\n*Date:* {r['date']}\n*Link:* {r['link']}"
                     send_to_slack(msg)
@@ -190,7 +190,8 @@ def main():
                 any_new = True
                 url = f"{app['url']}/reviews?ratings%5B%5D=2&sort_by=newest"
                 reviews, nid = get_new_reviews(driver, url, state[key]["last_2_id"])
-                if nid: new_state[key]["last_2_id"] = nid
+                if nid: 
+                    new_state[key]["last_2_id"] = nid  # FIXED
                 for r in reviews:
                     msg = f"*New 2-Star Review*\n*App:* {app['name']}\n*Store:* {r['author']}\n*Date:* {r['date']}\n*Link:* {r['link']}"
                     send_to_slack(msg)
