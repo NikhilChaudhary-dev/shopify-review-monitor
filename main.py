@@ -179,8 +179,8 @@ def main():
                 any_new = True
                 url = f"{app['url']}/reviews?ratings%5B%5D=1&sort_by=newest"
                 reviews, nid = get_new_reviews(driver, url, state[key]["last_1_id"])
-                if nid: 
-                    new_state[key]["last_1_id"] = nid  # FIXED
+                if nid:
+                    new_state[key]["last_1_id"] = nid  # FIXED: nid, not fallout
                 for r in reviews:
                     msg = f"*New 1-Star Review*\n*App:* {app['name']}\n*Store:* {r['author']}\n*Date:* {r['date']}\n*Link:* {r['link']}"
                     send_to_slack(msg)
@@ -190,8 +190,8 @@ def main():
                 any_new = True
                 url = f"{app['url']}/reviews?ratings%5B%5D=2&sort_by=newest"
                 reviews, nid = get_new_reviews(driver, url, state[key]["last_2_id"])
-                if nid: 
-                    new_state[key]["last_2_id"] = nid  # FIXED
+                if nid:
+                    new_state[key]["last_2_id"] = nid  # FIXED: nid, not fallout
                 for r in reviews:
                     msg = f"*New 2-Star Review*\n*App:* {app['name']}\n*Store:* {r['author']}\n*Date:* {r['date']}\n*Link:* {r['link']}"
                     send_to_slack(msg)
