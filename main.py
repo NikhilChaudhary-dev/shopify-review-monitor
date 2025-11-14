@@ -21,7 +21,7 @@ APP_URL_2_STAR = "https://apps.shopify.com/subscription-payments/reviews?ratings
 # Paste your Slack Webhook URL here
 # Tutorial: https://api.slack.com/messaging/webhooks
 # FOR GITHUB ACTIONS: We will read this from an environment variable
-SLACK_WEBHOOK_URL = os.environ.get("SLACK_WEBHOOK_URL", "https://hooks.slack.com/services/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") # <-- EDIT THIS
+SLACK_WEBHOOK_URL = os.environ.get("SLACK_WEBHOOK_URL", "Secrt_url") # <-- EDIT THIS
 
 # State file name (will store previous data)
 STATE_FILE = "review_state.json"
@@ -255,7 +255,7 @@ def main():
         
         if current_1_star_count is None:
             print("Could not fetch counts. Exiting script.")
-            send_to_slack("🚨 ERROR: Shopify Review Monitor script could not fetch counts. Check page layout.")
+            send_to_slack("ERROR: Shopify Review Monitor script could not fetch counts. Check page layout.")
             return
 
         print(f"Current counts: 1-star={current_1_star_count}, 2-star={current_2_star_count}")
@@ -277,7 +277,7 @@ def main():
                 new_state["last_1_star_id"] = new_latest_id # Update state
                 for review in new_reviews:
                     message = (
-                        f"🚨 *New 1-Star Negative Review (App: Recharge Subscription)* 🚨\n\n"
+                        f"*New 1-Star Negative Review (App: Recharge Subscription)*\n\n"
                         f"*Author:* {review['author']}\n"
                         f"*Date:* {review['date']}\n"
                         f"*Link:* {review['link']}"
@@ -304,7 +304,7 @@ def main():
                 new_state["last_2_star_id"] = new_latest_id # Update state
                 for review in new_reviews:
                     message = (
-                        f"⚠️ *New 2-Star Negative Review (App: Recharge Subscription)* ⚠️\n\n"
+                        f"*New 2-Star Negative Review (App: Recharge Subscription)*\n\n"
                         f"*Author:* {review['author']}\n"
                         f"*Date:* {review['date']}\n"
                         f"*Link:* {review['link']}"
@@ -316,21 +316,20 @@ def main():
                  if state["last_2_star_id"] is None and new_latest_id:
                      new_state["last_2_star_id"] = new_latest_id
 
+        # --- NEW HEARTBEAT NOTIFICATION ---
         if not has_new_reviews:
             print("No new 1 or 2-star reviews found.")
+            # Send a "success" message so we know the script is running.
+            send_to_slack("Shopify Monitor ran successfully. No new negative reviews found. (Heartbeat)")
 
         # 4. Save the new state (even if no new reviews, to update counts)
         save_state(new_state)
 
     except Exception as e:
-        print(f"A major error occurred in the script: {e}")
-        import traceback
-        traceback.print_exc()
-        send_to_slack(f"🚨 FATAL ERROR: Shopify Review Monitor script failed! Error: {e}")
-    
+        print(f"An unexpected error occurred in main loop: {e}")
+        send_to_slack(f"Shopify Monitor script failed with error: {e}")
     finally:
-        # 5. Close the browser
-        if 'driver' in locals() and driver:
+        if driver:
             driver.quit()
         print("--- Script Finished ---")
 
