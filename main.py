@@ -6,102 +6,90 @@ import requests
 from pathlib import Path
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
-from selenium.common.exceptions import TimeoutException, NoSuchElementException
+from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import TimeoutException
 from bs4 import BeautifulSoup
 
-# YE LINE ADD KI HAI (sirf yahi)
+# --- ZAROORI: GitHub Actions ke liye ---
 from webdriver_manager.chrome import ChromeDriverManager
 
 # --- Configuration ---
 APP_URL = "https://apps.shopify.com/subscription-payments"
 STATE_FILE = Path("review_state.json")
 
-# YE LINE SABSE ZAROORI HAI
+# GitHub Secrets se webhook lega, local mein test karne ke liye default
 SLACK_WEBHOOK_URL = os.environ.get("SLACK_WEBHOOK_URL", "YOUR_SLACK_WEBHOOK_URL_HERE")
 
+# --- Driver Setup (Sirf webdriver-manager) ---
 def init_driver():
-    print("Initializing browser driver...")
-    driver = None
+    print("Initializing ChromeDriver using webdriver-manager...")
     options = Options()
     options.add_argument("--headless")
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
+    options.add_argument("--disable-gpu")
     options.add_argument("--window-size=1920,1080")
     options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
 
     try:
-        # Attempt 1: Manual driver (local)
-        manual_driver_path = Path(os.getcwd()) / "chromedriver.exe"
-        print(f"Attempt 1: Trying manual driver path: {manual_driver_path}")
-        
-        if manual_driver_path.exists():
-            service = Service(executable_path=str(manual_driver_path))
-            print("Driver Service created from manual path.")
-            driver = webdriver.Chrome(service=service, options=options)
-            print("webdriver.Chrome() successfully called (Manual Path).")
-        else:
-            # Attempt 2: webdriver_manager (GitHub Actions)
-            print("Manual driver not found. Trying webdriver-manager...")
-            service = Service(ChromeDriverManager().install())
-            print("Driver Service created from webdriver-manager.")
-            driver = webdriver.Chrome(service=service, options=options)
-            print("webdriver.Chrome() successfully called (webdriver-manager).")
-
-        print("Browser driver is ready.")
+        service = Service(ChromeDriverManager().install())
+        driver = webdriver.Chrome(service=service, options=options)
+        print("ChromeDriver initialized successfully!")
         return driver
-
     except Exception as e:
-        print(f"Failed to start driver: {e}")
+        print(f"Failed to initialize driver: {e}")
         return None
 
+# --- State Management ---
 def load_state():
     if STATE_FILE.exists():
         try:
             with open(STATE_FILE, 'r') as f:
-                return json.load(f)
+                data = json.load(f)
+                print(f"Old state loaded: {data}")
+                return data
         except json.JSONDecodeError:
-            print("Error reading state file. Starting fresh.")
+            print("State file corrupt. Starting fresh.")
     
-    return {
-        "1_star_count": 0,
-        "2_star_count": 0,
-        "last_1_star_id": None,
-        "last_2_star_id": None
-    }
+    default = {"1_star_count": 0, "2_star_count": 0, "last_1_star_id": None, "last_2_star_id": None}
+    print(f"Default state created: {default}")
+    return default
 
 def save_state(state):
     try:
         with open(STATE_FILE, 'w') as f:
             json.dump(state, f, indent=4)
-        print("New state saved: review_state.json")
+        print("State saved to review_state.json")
     except Exception as e:
-        print(f"Error saving state file: {e}")
+        print(f"Error saving state: {e}")
 
+# --- Slack Notification ---
 def send_to_slack(message):
     if "YOUR_SLACK_WEBHOOK_URL_HERE" in SLACK_WEBHOOK_URL:
-        print("Slack Webhook URL configured nahi hai. Notification skip kar raha hoon.")
+        print("SLACK_WEBHOOK_URL not set. Skipping Slack message.")
+        print(f"Would send: {message}")
         return
-    
+
     try:
         payload = {"text": message}
         response = requests.post(SLACK_WEBHOOK_URL, json=payload, timeout=10)
         if response.status_code == 200:
-            print("Successfully sent notification to Slack.")
+            print("Slack message sent successfully.")
         else:
-            print(f"Error sending message to Slack: {response.status_code} {response.text}")
+            print(f"Slack error: {response.status_code} {response.text}")
     except Exception as e:
-        print(f"Exception while sending to Slack: {e}")
+        print(f"Slack request failed: {e}")
 
-def get_review_counts(driver, url):
-    print(f"Fetching review counts from: {url}")
+# --- Scrape Review Counts ---
+def get_review_counts(driver):
+    print(f"Fetching review counts from: {APP_URL}")
     try:
-        driver.get(url)
+        driver.get(APP_URL)
         WebDriverWait(driver, 20).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, 'a[aria-label*="total reviews"]'))
+            EC.presence_of_element_located((By.CSS_SELECTOR, 'a[href*="ratings"]'))
         )
         time.sleep(3)
 
@@ -109,148 +97,144 @@ def get_review_counts(driver, url):
         counts = {'1': 0, '2': 0}
 
         for rating in ['1', '2']:
-            link_element = soup.select_one(f'a[href*="ratings%5B%5D={rating}"]')
-            if link_element:
-                count_element = link_element.select_one('span.link-block--underline')
-                if count_element:
-                    count_text = count_element.get_text(strip=True)
-                    if 'K' in count_text:
-                        count = int(float(count_text.replace('K', '')) * 1000)
+            link = soup.select_one(f'a[href*="ratings%5B%5D={rating}"]')
+            if link:
+                span = link.select_one('span.link-block--underline')
+                if span:
+                    text = span.get_text(strip=True).upper()
+                    if 'K' in text:
+                        counts[rating] = int(float(text.replace('K', '')) * 1000)
                     else:
-                        count = int(count_text)
-                    counts[rating] = count
+                        counts[rating] = int(text)
 
-        print(f"Current counts: 1-star={counts['1']}, 2-star={counts['2']}")
+        print(f"Current counts → 1-star: {counts['1']}, 2-star: {counts['2']}")
         return counts['1'], counts['2']
 
     except TimeoutException:
-        print("Timed out waiting for review counts to load.")
+        print("Timeout: Review section not loaded.")
         return None, None
     except Exception as e:
-        print(f"Error scraping review counts: {e}")
+        print(f"Error getting counts: {e}")
         return None, None
 
+# --- Scrape New Reviews ---
 def get_new_reviews(driver, url, last_known_id):
-    print(f"Checking for new reviews on: {url}")
-    new_reviews = []
+    print(f"Scraping new reviews from: {url}")
     try:
         driver.get(url)
         WebDriverWait(driver, 20).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, "div[data-review-content-id]"))
         )
-        time.sleep(7)
+        time.sleep(5)
 
         soup = BeautifulSoup(driver.page_source, 'html.parser')
-        review_elements = soup.select("div[data-review-content-id]")
-
-        if not review_elements:
-            print("No review elements found on page.")
+        elements = soup.select("div[data-review-content-id]")
+        if not elements:
+            print("No review elements found.")
             return [], None
 
-        first_review_id_on_page = review_elements[0].get('data-review-content-id')
+        newest_id = elements[0].get('data-review-content-id')
+        new_reviews = []
 
-        for element in review_elements:
-            review_id = element.get('data-review-content-id')
-            if review_id == last_known_id:
-                print(f"Found last known review ID ({last_known_id}). Stopping search.")
+        for el in elements:
+            rid = el.get('data-review-content-id')
+            if rid == last_known_id:
+                print(f"Found last known review ({rid}). Stopping.")
                 break
 
-            author = "N/A"
-            author_element = element.select_one('span[title]')
-            if author_element:
-                author = author_element.get('title', 'N/A').strip()
+            author = el.select_one('span[title]') or el.select_one('h3')
+            author = author.get('title', 'Unknown') if author else "Unknown"
 
-            date = "N/A"
-            date_block = element.select_one('.lg\\:tw-col-span-3')
-            if date_block:
-                date_element = date_block.select_one('.tw-text-body-xs.tw-text-fg-tertiary')
-                if date_element:
-                    date = date_element.get_text(strip=True)
+            date = el.select_one('.tw-text-body-xs.tw-text-fg-tertiary')
+            date = date.get_text(strip=True) if date else "Unknown Date"
 
-            text = "N/A"
-            text_element = element.select_one('div[data-truncate-content-copy] p')
-            if text_element:
-                text = text_element.get_text(strip=True)
+            text_el = el.select_one('div[data-truncate-content-copy] p')
+            text = text_el.get_text(strip=True) if text_el else "No text"
 
-            review = {
-                "id": review_id,
+            new_reviews.append({
+                "id": rid,
                 "author": author,
                 "date": date,
-                "text": text
-            }
-            new_reviews.append(review)
+                "text": text,
+                "link": f"https://apps.shopify.com/reviews/{rid}"
+            })
 
-        return list(reversed(new_reviews)), first_review_id_on_page
+        return list(reversed(new_reviews)), newest_id
 
     except Exception as e:
-        print(f"Error scraping new reviews: {e}")
+        print(f"Error scraping reviews: {e}")
         return [], None
 
+# --- Main Function ---
 def main():
     print("--- Shopify Review Monitor Started ---")
     state = load_state()
-    print(f"Old state loaded: {state}")
     new_state = state.copy()
     has_new_reviews = False
 
     driver = init_driver()
     if not driver:
-        print("Driver failed to initialize. Exiting script.")
+        send_to_slack("Driver failed to start. Monitor stopped.")
         sys.exit(1)
 
     try:
-        current_1_star_count, current_2_star_count = get_review_counts(driver, APP_URL)
-        if current_1_star_count is None:
-            print("Could not fetch review counts. Exiting.")
+        # 1. Get current counts
+        c1, c2 = get_review_counts(driver)
+        if c1 is None:
+            send_to_slack("Failed to fetch review counts. Check page layout.")
             return
 
-        new_state["1_star_count"] = current_1_star_count
-        new_state["2_star_count"] = current_2_star_count
+        new_state["1_star_count"] = c1
+        new_state["2_star_count"] = c2
 
-        # 1-Star
-        if current_1_star_count > state["1_star_count"]:
-            print(f"New 1-star review count ({current_1_star_count}) > old count ({state['1_star_count']}). Checking...")
+        # 2. Check 1-star
+        if c1 > state["1_star_count"]:
+            print(f"New 1-star reviews: {c1 - state['1_star_count']}")
             has_new_reviews = True
-            review_url_1 = f"{APP_URL}/reviews?ratings%5B%5D=1&sort_by=newest"
-            reviews, newest_id = get_new_reviews(driver, review_url_1, state["last_1_star_id"])
-            if newest_id:
-                new_state["last_1_star_id"] = newest_id
-            for review in reviews:
-                message = (
-                    f"*New 1-Star Negative Review (App: Recharge Subscription)*\n\n"
-                    f"*Author:* {review['author']}\n"
-                    f"*Date:* {review['date']}\n"
-                    f"*Link:* https://apps.shopify.com/reviews/{review['id']}"
+            url = f"{APP_URL}/reviews?ratings%5B%5D=1&sort_by=newest"
+            reviews, latest_id = get_new_reviews(driver, url, state["last_1_star_id"])
+            if latest_id:
+                new_state["last_1_star_id"] = latest_id
+            for r in reviews:
+                msg = (
+                    f"*New 1-Star Review*\n"
+                    f"*Store:* {r['author']}\n"
+                    f"*Date:* {r['date']}\n"
+                    f"*Link:* {r['link']}"
                 )
-                send_to_slack(message)
+                send_to_slack(msg)
+                time.sleep(1)
 
-        # 2-Star
-        if current_2_star_count > state["2_star_count"]:
-            print(f"New 2-star review count ({current_2_star_count}) > old count ({state['2_star_count']}). Checking...")
+        # 3. Check 2-star
+        if c2 > state["2_star_count"]:
+            print(f"New 2-star reviews: {c2 - state['2_star_count']}")
             has_new_reviews = True
-            review_url_2 = f"{APP_URL}/reviews?ratings%5B%5D=2&sort_by=newest"
-            reviews, newest_id = get_new_reviews(driver, review_url_2, state["last_2_star_id"])
-            if newest_id:
-                new_state["last_2_star_id"] = newest_id
-            for review in reviews:
-                message = (
-                    f"*New 2-Star Negative Review (App: Recharge Subscription)*\n\n"
-                    f"*Author:* {review['author']}\n"
-                    f"*Date:* {review['date']}\n"
-                    f"*Link:* https://apps.shopify.com/reviews/{review['id']}"
+            url = f"{APP_URL}/reviews?ratings%5B%5D=2&sort_by=newest"
+            reviews, latest_id = get_new_reviews(driver, url, state["last_2_star_id"])
+            if latest_id:
+                new_state["last_2_star_id"] = latest_id
+            for r in reviews:
+                msg = (
+                    f"*New 2-Star Review*\n"
+                    f"*Store:* {r['author']}\n"
+                    f"*Date:* {r['date']}\n"
+                    f"*Link:* {r['link']}"
                 )
-                send_to_slack(message)
+                send_to_slack(msg)
+                time.sleep(1)
 
-        # HEARTBEAT
+        # 4. Heartbeat
         if not has_new_reviews:
-            print("No new 1 or 2-star reviews found.")
-            send_to_slack("Shopify Monitor ran successfully. No new negative reviews found. (Heartbeat)")
+            print("No new negative reviews.")
+            send_to_slack("Shopify Monitor ran successfully. No new negative reviews. (Heartbeat)")
 
+        # 5. Save state
         save_state(new_state)
 
     except Exception as e:
-        print(f"An unexpected error occurred in main loop: {e}")
-        send_to_slack(f"Shopify Monitor script failed with error: {e}")
+        error_msg = f"Script crashed: {e}"
+        print(error_msg)
+        send_to_slack(error_msg)
     finally:
         if driver:
             driver.quit()
