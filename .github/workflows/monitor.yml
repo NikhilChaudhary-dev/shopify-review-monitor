@@ -2,11 +2,11 @@ name: Shopify Review Monitor
 
 on:
   schedule:
-    - cron: '30 0 * * *'   # Daily at 00:30 UTC
-    - cron: '30 6 * * *'   # Daily at 06:30 UTC
-    - cron: '30 12 * * *'  # Daily at 12:30 UTC
-    - cron: '30 18 * * *'  # Daily at 18:30 UTC
-  workflow_dispatch:       # Manual trigger allowed
+    - cron: '30 0 * * *'   # 00:30 UTC
+    - cron: '30 6 * * *'   # 06:30 UTC
+    - cron: '30 12 * * *'  # 12:30 UTC
+    - cron: '30 18 * * *'  # 18:30 UTC
+  workflow_dispatch:       # Manual run allowed
 
 jobs:
   build:
@@ -37,7 +37,7 @@ jobs:
           git config --global user.email 'github-actions@github.com'
           git add review_state.json
           if git diff --staged --quiet; then
-            echo "No changes to commit."
+            echo "No changes in review_state.json"
           else
             git commit -m "Update review_state.json [skip ci]" && git push
           fi
