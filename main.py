@@ -21,7 +21,7 @@ APP_URL_2_STAR = "https://apps.shopify.com/subscription-payments/reviews?ratings
 # Paste your Slack Webhook URL here
 # Tutorial: https://api.slack.com/messaging/webhooks
 # FOR GITHUB ACTIONS: We will read this from an environment variable
-SLACK_WEBHOOK_URL = os.environ.get("SLACK_WEBHOOK_URL", "Secrt_url") # <-- EDIT THIS
+SLACK_WEBHOOK_URL = os.environ.get("SLACK_WEBHOOK_URL", "https://hooks.slack.com/services/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") # <-- EDIT THIS
 
 # State file name (will store previous data)
 STATE_FILE = "review_state.json"
