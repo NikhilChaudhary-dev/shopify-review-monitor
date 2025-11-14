@@ -1,38 +1,43 @@
 name: Shopify Review Monitor
 
 on:
-schedule:
-- cron: '30 0 * * *'
-- cron: '30 6 * * *'
-- cron: '30 12 * * *'
-- cron: '30 18 * * *'
-workflow_dispatch:
+  schedule:
+    - cron: '30 0 * * *'   # Daily at 00:30 UTC
+    - cron: '30 6 * * *'   # Daily at 06:30 UTC
+    - cron: '30 12 * * *'  # Daily at 12:30 UTC
+    - cron: '30 18 * * *'  # Daily at 18:30 UTC
+  workflow_dispatch:       # Manual trigger allowed
 
 jobs:
-build:
-runs-on: ubuntu-latest
-steps:
-- name: Checkout repository code
-uses: actions/checkout@v4
+  build:
+    runs-on: ubuntu-latest
 
-  - name: Set up Python
-    uses: actions/setup-python@v5
-    with:
-      python-version: '3.10'
+    steps:
+      - name: Checkout repository code
+        uses: actions/checkout@v4
 
-  - name: Install dependencies
-    run: |
-      python -m pip install --upgrade pip
-      pip install -r requirements.txt
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
 
-  - name: Run the review monitor script
-    env:
-      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-    run: python main.py
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
 
-  - name: Commit and push state file
-    run: |
-      git config --global user.name 'github-actions'
-      git config --global user.email 'github-actions@github.com'
-      git add review_state.json
-      git diff --staged --quiet || (git commit -m "Update review_state.json" && git push)
+      - name: Run the review monitor script
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: python main.py
+
+      - name: Commit and push state file (if changed)
+        run: |
+          git config --global user.name 'github-actions'
+          git config --global user.email 'github-actions@github.com'
+          git add review_state.json
+          if git diff --staged --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "Update review_state.json [skip ci]" && git push
+          fi
