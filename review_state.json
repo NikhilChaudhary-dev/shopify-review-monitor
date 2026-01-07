@@ -1,18 +1,18 @@
 {
     "Recharge": {
-        "1_star": 112,
+        "1_star": 114,
         "2_star": 16,
         "last_1_id": "1983518",
         "last_2_id": "1995207"
     },
     "Appstle": {
-        "1_star": 37,
+        "1_star": 39,
         "2_star": 15,
         "last_1_id": "2003045",
         "last_2_id": "1960749"
     },
     "Seal": {
-        "1_star": 18,
+        "1_star": 19,
         "2_star": 5,
         "last_1_id": "1896637",
         "last_2_id": "1908639"
@@ -43,12 +43,12 @@
     },
     "Recurpay": {
         "1_star": 2,
-        "2_star": 1,
+        "2_star": 2,
         "last_1_id": "1961283",
-        "last_2_id": "1768145"
+        "last_2_id": "1931315"
     },
     "ShopifySubs": {
-        "1_star": 94,
+        "1_star": 96,
         "2_star": 36,
         "last_1_id": "2025644",
         "last_2_id": "2025751"
